@@ -141,7 +141,97 @@ Modern C++ at first glance
 - `std::begin`, `std::end`, initializer list
 - lambda
 - SFINAE (Substitution failure is not an error)
-- Move and R-value reference
+- Move semantics and R-value reference
+- Bonus (smart pointers and ownership)
+
+---
+
+# What is C++?
+
+### C++ is a general-purpose programming language with a bias towards systems programming that
+
+- is a better C
+- supports data abstraction
+- supports object-oriented programming
+- supports generic programming
+
+.footnote[http://www.stroustrup.com/C++11FAQ.html#aims]
+
+---
+
+# Modern C++ goals
+
+- clean
+  + type deduction, range-based for, lambda ...
+- fast
+  + move semantics
+- safe
+  + automatic lifetime management and ownership, ...
+
+---
+
+class: center, middle
+
+"C++ Is my favorite garbage collected language because it generates so little garbage."
+
+### - Bjarne Stroustrup
+
+
+.left[.footnote[http://www.stroustrup.com/bs_faq.html#really-say-that]]
+
+
+---
+
+.center[![Dennis](http://www.thetimes.co.uk/tto/multimedia/archive/00221/97222959_dennis_221880c.jpg)]
+
+---
+
+# auto
+
+```
+// C++98
+map<int,string>::iterator i = m.begin();
+double const xlimit = config["xlimit"];
+singleton& s = singleton::instance();
+
+
+
+// C++11
+auto i = begin(m);
+auto const xlimit = config["xlimit"];
+auto& s = singleton::instance();
+```
+
+- may the type be with you
+- don't abuse them
+- be aware of type casting, promotions, ambiguities, ... on the RHS
+- naming!
+
+```
+// never do this
+auto foo = bla();
+```
+
+.footnote[code src: https://herbsutter.com/elements-of-modern-c-style/]
+
+---
+
+# range-based for
+
+
+- [ES.71: Prefer a range-for-statement to a for-statement when there is a choice](https://github.com/isocpp/CppCoreGuidelines/blob/master/CppCoreGuidelines.md#es71-prefer-a-range-for-statement-to-a-for-statement-when-there-is-a-choice)
+---
+
+# nullptr
+
+---
+
+# TODO
+
+- `std::begin`, `std::end`, initializer list
+- lambda
+- SFINAE (Substitution failure is not an error)
+- Move semantics and R-value reference
 - Bonus (smart pointers and ownership)
 
 ---
@@ -168,8 +258,8 @@ Reference
     </script>
     <script type="text/javascript">
       var slideshow = remark.create({
-          highlightStyle: 'arta',
-          highlightLanguage: 'bash'
+          highlightLanguage: 'cpp',
+          highlightStype: 'tomorrow'
         }) ;
     </script>
   </body>
