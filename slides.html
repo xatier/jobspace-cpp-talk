@@ -212,24 +212,240 @@ auto& s = singleton::instance();
 auto foo = bla();
 ```
 
+- [ES.11: Use auto to avoid redundant repetition of type names](https://github.com/isocpp/CppCoreGuidelines/blob/master/CppCoreGuidelines.md#es11-use-auto-to-avoid-redundant-repetition-of-type-names)
+
 .footnote[code src: https://herbsutter.com/elements-of-modern-c-style/]
 
 ---
 
 # range-based for
 
+```
+for ( range_declaration : range_expression ) {
+  // loop_statement
+}
+
+// will become
+
+{
+  auto && __range = range_expression ;
+  for (auto __begin = begin_expr ,
+            __end = end_expr ;
+       __begin != __end;
+       ++__begin) {
+    range_declaration = *__begin;
+    // loop_statement
+  }
+}
+```
+
+- range_expression -> `__begin`, `__end`
+  - static array: `(__range)`, `(__range + size)`
+  - classes: `.begin()`, `.end()`
+  - [otherwise](https://ideone.com/kHgRkd): try available `begin()`, `end()`
+
+- no more things like `std::unordered_map<std::string,int>::iterator`
+
+---
+
+# range-based for (cont.)
+
+- real code in clang (`clang/lib/CodeGen/CGCall.cpp`)
+
+```
+// pre C++11
+for (CGFunctionInfo::arg_iterator I = FI->arg_begin(), E = FI->arg_end();
+         I != E; ++I)
+
+// modern C++
+for (auto &I : FI->arguments())
+```
+
+
+
+- avoid expensive copies
+
+```
+// copy each element of vs into s
+for (string s : vs)
+
+// better
+for (string& s : vs)
+
+// even better if possible
+for (const string& s : vs)
+```
 
 - [ES.71: Prefer a range-for-statement to a for-statement when there is a choice](https://github.com/isocpp/CppCoreGuidelines/blob/master/CppCoreGuidelines.md#es71-prefer-a-range-for-statement-to-a-for-statement-when-there-is-a-choice)
+
 ---
 
 # nullptr
+
+- readability
+- well defined and restrictive in the spec
+- principle of least astonishment
+  - will NEVER be converted to an `int`
+
+```
+void f(int);
+void f(char *);
+
+f(0);         // call f(int)
+f(nullptr);   // call f(char *)
+```
+
+- [std::nullptr_t](http://en.cppreference.com/w/cpp/types/nullptr_t)
+- [ES.47: Use nullptr rather than 0 or NULL](https://github.com/isocpp/CppCoreGuidelines/blob/master/CppCoreGuidelines.md#Res-nullptr)
+
+---
+
+# std::begin, std::end
+
+- returns an iterator to the begin/end of a container or array
+  - container `C`: returns a `C::iterator` (or `C::const_iterator`)
+  - array `T arr[size]`: returns a pointer to the beginning of the array
+
+```
+template <class C> auto begin(C& c) -> decltype(c.begin());
+template <class C> auto begin(const C& c) -> decltype(c.begin());
+Returns: c.begin()
+
+
+template <class C> auto end(C& c) -> decltype(c.end());
+template <class C> auto end(const C& c) -> decltype(c.end());
+Returns: c.end()
+
+
+
+
+template <class T, size_t N> T* begin(T (&array)[N]);
+Returns: array
+
+
+template <class T, size_t N> T* end(T (&array)[N]);
+Returns: array + N
+```
+
+---
+
+# initializer list
+
+- `std::initializer_list`
+
+- allow the user to pass arguments with `f({...})` syntax
+- usually for the manipulators of data containers
+
+```
+// llvm/include/llvm/ADT/SmallVector.h
+
+template<typename in_iter>
+void append(in_iter in_start, in_iter in_end) {
+  // omitted
+}
+
+void append(std::initializer_list<T> IL) {
+  append(IL.begin(), IL.end());
+}
+
+
+const SmallVector &operator=(std::initializer_list<T> IL) {
+  // omitted
+}
+```
+
+- http://en.cppreference.com/w/cpp/utility/initializer_list
+
+---
+
+# lambda
+
+- lambda in C++ is just a compiler generated anonymous class with `operator()`
+
+- `[ capture-list ] ( params ) -> ret { body }`
+
+- `auto glambda = [](auto &a, auto &b) { return a < b; };`
+
+- capture list
+  - `id`
+  - `&id`
+  - `this`
+
+```
+[&]{};     // by-reference capture default
+[=]{};     // by-copy capture default
+[&, i]{};  // by-reference capture, except i is captured by copy
+[=, &i]{}; // by-copy capture, except i is captured by reference
+```
+
+- http://en.cppreference.com/w/cpp/language/lambda
+- DRY: `std::plus`, `std::less`, ... http://en.cppreference.com/w/cpp/utility/functional
+
+---
+
+# lambda (cont.)
+
+- `std::for_each`
+
+```
+template<typename InputIt, typename UnaryFunction>
+UnaryFunction for_each(InputIt first, InputIt last, UnaryFunction f) {
+    for (; first != last; ++first) {
+        f(*first);
+    }
+    return f;
+}
+
+std::for_each(c.begin(), c.end(), [](int i){ std::cout << i << ' '; });
+```
+
+- implement `std::count` with existing `std::count_if`
+
+```
+template<typename InputIt, typename T>
+typename std::iterator_traits<InputIt>::difference_type
+count(InputIt first, InputIt last, const T& value) {
+  return count_if(first, last,
+                  [=](const T &v) -> bool { return v == value; });
+}
+```
+
+---
+
+# lambda (cont.)
+
+- local reusable (throw away) routines
+
+```
+// clang/lib/Serialization/ASTReader.cpp
+bool HeaderFileInfoTrait::EqualKey(internal_key_ref a, internal_key_ref b) {
+
+  // omitted
+
+  FileManager &FileMgr = Reader.getFileManager();
+  auto GetFile = [&](const internal_key_type &Key) -> const FileEntry* {
+    if (!Key.Imported)
+      return FileMgr.getFile(Key.Filename);
+
+    std::string Resolved = Key.Filename;
+    Reader.ResolveImportedPath(M, Resolved);
+    return FileMgr.getFile(Resolved);
+  };
+
+  const FileEntry *FEA = GetFile(a);
+  const FileEntry *FEB = GetFile(b);
+  return FEA && FEA == FEB;
+}
+```
+
+- Question: what is the type of a lambda? auto? template T? ...?
+  - fake answer: [`std::function`](http://en.cppreference.com/w/cpp/utility/functional/function)
+  - real answer: C++ spec 5.1.2 Lambda expressions, #3, #5, #6
 
 ---
 
 # TODO
 
-- `std::begin`, `std::end`, initializer list
-- lambda
 - SFINAE (Substitution failure is not an error)
 - Move semantics and R-value reference
 - Bonus (smart pointers and ownership)
