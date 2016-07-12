@@ -130,7 +130,7 @@ Modern C++ at First Glance
 
 
 
-### xatier @jobspace .red[Jul 15 2016]  ###
+### xatier @jobspace .red[Jul 22 2016]  ###
 
 ---
 
@@ -215,6 +215,32 @@ auto foo = bla();
 - [ES.11: Use auto to avoid redundant repetition of type names](https://github.com/isocpp/CppCoreGuidelines/blob/master/CppCoreGuidelines.md#es11-use-auto-to-avoid-redundant-repetition-of-type-names)
 
 .footnote[code src: https://herbsutter.com/elements-of-modern-c-style/]
+
+---
+
+# auto (cont.)
+
+- LLVM Coding Standards: Beware unnecessary copies with auto
+
+  - its default behavior is a copy
+  - range-based for loops, careless copies are expensive
+  - use `auto &` unless you need to copy the result
+  - use `auto *` when copying pointers
+
+```
+// Typically there's no reason to copy.
+for (const auto &Val : Container) { observe(Val); }
+for (auto &Val : Container) { Val.change(); }
+
+// Remove the reference if you really want a new copy.
+for (auto Val : Container) { Val.change(); saveSomewhere(Val); }
+
+// Copy pointers, but make it clear that they're pointers.
+for (const auto *Ptr : Container) { observe(*Ptr); }
+for (auto *Ptr : Container) { Ptr->change(); }
+```
+
+.footnote[http://llvm.org/docs/CodingStandards.html#beware-unnecessary-copies-with-auto]
 
 ---
 
@@ -444,9 +470,166 @@ bool HeaderFileInfoTrait::EqualKey(internal_key_ref a, internal_key_ref b) {
 
 ---
 
+# SFINAE (Substitution failure is not an error)
+
+- substitution
+
+```
+template<typename T> void f(T t) { }
+
+struct foo {
+  int x;
+};
+
+f<int>(1);              // T = int
+f<float>(3.14);         // T = float
+f<struct foo>(1);       // substitution failure
+```
+
+- substitution failure is not an error
+
+```
+template<int N>
+void foo(char(*)[N] = nullptr) { }     // argument default value is nullptr
+
+
+foo<2>();               // ok
+foo<1>();               // ok
+
+// warning:
+//   candidate template *ignored*: substitution failure [with N = 0]:
+//   zero-length arrays are not permitted in C++
+foo<0>();
+```
+
+---
+
+# SFINAE (cont.)
+
+- make it more complex
+
+```
+template<int N>
+void foo(char(*)[N % 2 == 0] = nullptr) {
+    // this overload is selected when N is even
+}
+template<int N>
+void foo(char(*)[N % 2 == 1] = nullptr) {
+    // this overload is selected  when N is odd
+}
+```
+
+- boolean conditions: `<type_traits>`, the C++ type support library
+
+```
+std::is_same<int, int32_t>::value             // true
+std::is_same<int, int64_t>::value             // false
+std::is_same<float, int32_t>::value           // false
+std::is_same<float, decltype(5566)>::value    // false
+std::is_same<float, decltype(55.66)>::value   // false
+std::is_same<float, decltype(55.66f)>::value  // true
+```
+
+- `is_array`, `is_class`, `is_pointer`, `is_const`, ...
+
+.footnote[http://en.cppreference.com/w/cpp/header/type_traits]
+
+---
+
+# SFINAE (cont.)
+
+- `std::enable_if`
+
+  - If `B` is true, `std::enable_if` has a public member typedef type, equal to `T`
+  - otherwise, there is **no** member typedef
+
+```
+template<bool B, typename T = void>
+struct enable_if {};
+
+template<typename T>
+struct enable_if<true, T> { typedef T type; };
+```
+
+- for example
+
+```
+// only enable this template if T is int
+template<typename T, typename std::enable_if<
+                                              std::is_same<T, int>::value
+                                            >::type * = nullptr>
+
+// when failure:
+// candidate template ignored: disabled by 'enable_if' [with T = float]
+                               std::is_same<T, int>::value
+                               ^
+```
+
+.footnote[http://en.cppreference.com/w/cpp/types/enable_if]
+
+---
+
+# SFINAE (cont.)
+
+- helpers
+
+```
+// since C++14
+template<typename T, std::enable_if_t<std::is_same<T, int>::value> * = nullptr>
+
+
+// or define our own, still C++11 but shorter :)
+template<class Condition, class T = void>
+using EnableIf = typename std::enable_if<Condition::value, T>::type *;
+
+template<typename T, EnableIf<std::is_same<T, int>> = nullptr>
+```
+
+- SFINAE and iterator tags
+
+```
+template<class It>
+using isRandomAccessIt =
+        std::is_base_of<std::random_access_iterator_tag,
+                        typename std::iterator_traits<It>::iterator_category>;
+
+
+// only enable the template if it's a random access itereator
+template<typename Iter, EnableIf<isRandomAccessIt<Iter>> = nullptr>
+```
+
+.footnote[https://github.com/RadeonOpenCompute/hcc/blob/master/include/experimental/algorithm]
+
+---
+
+
+# SFINAE (cont.)
+
+- concept! ... but didn't get in C++17
+- http://en.cppreference.com/w/cpp/language/constraints
+
+```
+template<typename T>
+concept bool Addable =
+requires (T a, T b) {
+    a + b; // "the expression a+b is a valid expression that will compile"
+};
+
+// example constraint from the standard library (ranges TS)
+template <class T, class U = T>
+concept bool Swappable = requires(T t, U u) {
+    swap(std::forward<T>(t), std::forward<U>(u));
+    swap(std::forward<U>(u), std::forward<T>(t));
+};
+```
+
+
+.footnote[http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/p0121r0.pdf]
+
+---
+
 # TODO
 
-- SFINAE (Substitution failure is not an error)
 - Move semantics and R-value reference
 - Bonus (smart pointers and ownership)
 
