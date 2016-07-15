@@ -628,9 +628,169 @@ concept bool Swappable = requires(T t, U u) {
 
 ---
 
+# Move semantics and R-value reference
+
+- copy operations in C++ are usually expensive
+- unnecessary copying of temporary objects might destroy the performance
+
+#### lvalue
+
+- [C++ spec 3.10.1] An lvalue (so called, historically, because lvalues could appear on the left-hand side of an assignment expression) designates a function or an object.
+  - If `E` is an expression of pointer type, then `*E` is an lvalue expression referring to the object or function to which `E` points.
+  - The result of calling a function whose return type is an lvalue reference is an lvalue.
+
+#### rvalue
+  - An rvalue (so called, historically, because rvalues could appear on the right-hand side of an assignment expression) is an **xvalue**, a temporary object or subobject thereof, or a value that is not associated with an object.
+
+---
+
+# Move (cont.)
+
+#### xvalue (temporary objects)
+  - An xvalue (an **eXpiring** value) also refers to an object, usually near the end of its lifetime (so that its
+resources may be moved, for example). 
+  - An xvalue is the result of certain kinds of expressions involving rvalue references. 
+    - The result of calling a function whose return type is an rvalue reference is an xvalue.
+
+#### glvalue
+  - A glvalue (**generalized** lvalue) is an lvalue or an xvalue.
+
+#### prvalue
+  -  A prvalue (**pure** rvalue) is an rvalue that is not an xvalue.
+    - The result of calling a function whose return type is not a reference is a prvalue.
+    - The value of a literal such as 12, 7.3e5, or true is also a prvalue.
+
+- http://en.cppreference.com/w/cpp/language/value_category
+
+---
+
+### Expression category taxonomy
+
+<img src="http://i.imgur.com/H7pBibA.png" width="700px"/>
+
+- `std::move`
+
+  - It doesn't really move anything, but converting an lvalue into an rvalue.
+
+
+---
+
+# Move (cont.)
+
+- resource stealing
+
+```
+std::string str = "Hello";
+std::vector<std::string> v;
+
+// uses the push_back(const T&) overload, which means 
+// we'll incur the cost of copying str
+v.push_back(str);
+std::cout << "After copy, str is \"" << str << "\"\n";
+
+// uses the rvalue reference push_back(T&&) overload,
+// which means no strings will be copied; instead, the contents
+// of str will be moved into the vector.  This is less
+// expensive, but also means str might now be empty.
+v.push_back(std::move(str));
+std::cout << "After move, str is \"" << str << "\"\n";
+
+std::cout << "The contents of the vector are \"" << v[0]
+                                     << "\", \"" << v[1] << "\"\n";
+}
+```
+
+```
+After copy, str is "Hello"
+After move, str is ""
+The contents of the vector are "Hello", "Hello"
+```
+
+---
+
+# Move (cont.)
+
+- Move constructors
+
+  - initialize the members by moving
+
+- Move assignment operator
+
+  - assign the members by moving
+
+```
+struct A {
+    std::string s;
+    A() : s("test") { }
+    A(const A& o) : s(o.s) { }                      // copy ctor
+    A(A&& o) : s(std::move(o.s)) { }                // move ctor
+
+    A& operator=(const A& other) {                  // copy assignment
+      s = other.s;
+      return *this;
+    }
+    A& operator=(A&& other) {                       // move assignment
+      s = std::move(other.s);
+      return *this;
+    }
+};
+```
+---
+
+# Move (cont.)
+
+```
+X()                  // default constructor
+X(const X&)          // copy constructor
+operator=(const X&)  // copy assignment
+X(X&&)               // move constructor
+operator=(X&&)       // move assignment
+~X()                 // destructor
+```
+
+- [C.60: Make copy assignment non-virtual, take the parameter by const&, and return by non-const&](C.60: Make copy assignment non-virtual, take the parameter by const&, and return by non-const&)
+- [C.62: Make copy assignment safe for self-assignment](https://github.com/isocpp/CppCoreGuidelines/blob/master/CppCoreGuidelines.md#Rc-move-self)
+- [C.63: Make move assignment non-virtual, take the parameter by &&, and return by non-const&](https://github.com/isocpp/CppCoreGuidelines/blob/master/CppCoreGuidelines.md#Rc-move-assignment)
+- [C.65: Make move assignment safe for self-assignment](https://github.com/isocpp/CppCoreGuidelines/blob/master/CppCoreGuidelines.md#Rc-copy-self)
+
+- non-virtual: avoid surprising behaviors
+- return by non-const&: allow chaining
+
+- Note: An assignment operator should (implicitly or explicitly) invoke all base and member copy/move assignment operators. Look at the destructor to determine if the type has pointer semantics or value semantics.
+---
+
+## Google C++ style
+
+#### Copyable and Movable Types
+
+- Support copying and/or moving if these operations are clear and meaningful for your type.
+- Otherwise, disable the implicitly generated special functions that perform copies and moves (`= delete`).
+
+    - A copyable type allows its objects to be initialized or assigned from any other object of the same type, without changing the value of the source.
+
+    - A movable type is one that can be initialized and assigned from temporaries (all copyable types are therefore movable).
+
+    - The copy/move constructors can be implicitly invoked by the compiler in some situations, e.g. when passing objects by value.
+---
+
+## Google C++ style
+
+#### rvalue reference
+
+- Use rvalue references only to define move constructors and move assignment operators, or for perfect forwarding.
+
+  - Rvalue references are a type of reference that **can only bind to temporary objects**.
+
+  - Defining a move constructor will probably just result in some **simple pointer manipulation** instead of copying a large amount of data. In some cases this can result in a major **performance improvement**.
+
+  - Rvalue references make it possible to write a **generic function wrapper that forwards its arguments to another function**, and works whether or not its arguments are temporary objects. (perfect forwarding)
+
+  - Rvalue references make it possible to implement types that are **movable but not copyable**, which can be useful for types that have no sensible definition of copying but where you might still want to pass them as function arguments, put them in containers, etc.
+
+---
+
 # TODO
 
-- Move semantics and R-value reference
 - Bonus (smart pointers and ownership)
 
 ---
@@ -653,7 +813,9 @@ Reference
 
 
     </textarea>
-    <script src="http://gnab.github.io/remark/downloads/remark-latest.min.js" type="text/javascript">
+    <!-- <script src="http://gnab.github.io/remark/downloads/remark-latest.min.js" type="text/javascript"> -->
+    <script src="file:///Users/xatier/remark-latest.min.js" type="text/javascript"> -->
+
     </script>
     <script type="text/javascript">
       var slideshow = remark.create({
