@@ -168,6 +168,12 @@ Modern C++ at First Glance
 - safe
   + automatic lifetime management and ownership, ...
 
+## In this talk
+
+#### how modern C++ is used in practical codebase (clang and llvm)
+#### suggestions from LLVM/Google coding style
+#### rules to follow in [C++ Core Guidelines](https://github.com/isocpp/CppCoreGuidelines/blob/master/CppCoreGuidelines.md)
+
 ---
 
 class: center, middle
@@ -218,7 +224,7 @@ auto foo = bla();
 
 ---
 
-# auto (cont.)
+# auto - in practice
 
 - LLVM Coding Standards: Beware unnecessary copies with auto
 
@@ -274,7 +280,7 @@ for ( range_declaration : range_expression ) {
 
 ---
 
-# range-based for (cont.)
+# range-based for - in practice
 
 - real code in clang (`clang/lib/CodeGen/CGCall.cpp`)
 
@@ -409,7 +415,7 @@ const SmallVector &operator=(std::initializer_list<T> IL) {
 
 ---
 
-# lambda (cont.)
+# lambda - in algorithms library
 
 - `std::for_each`
 
@@ -438,7 +444,7 @@ count(InputIt first, InputIt last, const T& value) {
 
 ---
 
-# lambda (cont.)
+# lambda - in practice
 
 - local reusable (throw away) routines
 
@@ -504,9 +510,9 @@ foo<0>();
 
 ---
 
-# SFINAE (cont.)
+# SFINAE - substitution with conditions
 
-- make it more complex
+- enable the template with `char(*)[ condition ]`
 
 ```
 template<int N>
@@ -536,7 +542,7 @@ std::is_same<float, decltype(55.66f)>::value  // true
 
 ---
 
-# SFINAE (cont.)
+# SFINAE - library support (since C++11)
 
 - `std::enable_if`
 
@@ -569,7 +575,7 @@ template<typename T, typename std::enable_if<
 
 ---
 
-# SFINAE (cont.)
+# SFINAE - write in clear forms
 
 - helpers
 
@@ -603,7 +609,7 @@ template<typename Iter, EnableIf<isRandomAccessIt<Iter>> = nullptr>
 ---
 
 
-# SFINAE (cont.)
+# SFINAE - standardizing
 
 - concept! ... but didn't get in C++17
 - http://en.cppreference.com/w/cpp/language/constraints
@@ -644,7 +650,7 @@ concept bool Swappable = requires(T t, U u) {
 
 ---
 
-# Move (cont.)
+# Move - new "values" since C++11
 
 #### xvalue (temporary objects)
   - An xvalue (an **eXpiring** value) also refers to an object, usually near the end of its lifetime (so that its
@@ -675,7 +681,7 @@ resources may be moved, for example).
 
 ---
 
-# Move (cont.)
+# Move - example
 
 - resource stealing
 
@@ -708,7 +714,7 @@ The contents of the vector are "Hello", "Hello"
 
 ---
 
-# Move (cont.)
+# Move - in class
 
 - Move constructors
 
@@ -737,7 +743,7 @@ struct A {
 ```
 ---
 
-# Move (cont.)
+# Move - in class (cont.)
 
 ```
 X()                  // default constructor
