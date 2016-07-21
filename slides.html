@@ -22,7 +22,7 @@
           h3 { font-size: 1.6em; }
           .footnote {
             position: absolute;
-            bottom: 3em;
+            bottom: 0.5em;
           }
           li p { line-height: 1.25em; }
           .red { color: #fa0000; }
@@ -795,10 +795,110 @@ operator=(X&&)       // move assignment
 
 ---
 
-# TODO
+# Bonus: smart pointers and ownership
 
-- Bonus (smart pointers and ownership)
+## smart pointers
 
+  - manage the underlying resource (pointers) by RAII (Resource Acquisition Is Initialization)
+    - aquire the resource when creating (ctor)
+    - release the resource when destroying (dtor)
+  - ownership management (transfering and sharing)
+
+## ownership
+
+  - "who can" and "how to" hold the raw pointers
+
+## ownership management in Modern C++
+
+  - `std::unique_ptr` (the only pointer holder)
+  - `std::shared_ptr` (sharing the same pointer by reference counting)
+  - `std::weak_ptr` (temporary ownership)
+
+---
+
+# unique pointer: std::unique_ptr
+
+- retain unique ownership of an object through a pointer
+- destroy that object (automatically) when the `unique_ptr` goes out of scope
+- no two `unique_ptr` instances can hold the same object
+
+```
+{
+  std::unique_ptr<Vec> v1(new Vec(0, 1, 2));  // initialize with the new'ed pointer
+  // ... your code here
+  std::unique_ptr<Vec> v2(std::move(v1));     // ownership transfer
+  // ... your code here
+
+  // resource will be released by v2's dtor here
+}
+```
+
+- only non-const `unique_ptr` can transfer the ownership (by moving to another `unique_ptr`)
+- an object managed by `const std::unique_ptr` is limited to the scope
+
+
+## what you should do most of the time!
+
+
+---
+
+# std::make_unique (since C++14)
+
+
+- alternative way to initialize an `unique_ptr`
+- forgot to add in C++11 (can be done with perfect forwarding)
+
+
+```
+auto v1 = std::make_unique<Vec>(0, 1, 2);   // since C++14
+
+// to provide make_unique in C++11
+template<typename T, typename ...Args>
+std::unique_ptr<T> make_unique( Args&& ...args ) {
+  return std::unique_ptr<T>( new T( std::forward<Args>(args)... ) );
+}
+```
+.footnote[https://herbsutter.com/gotw/_102/]
+
+---
+
+# shared pointer: std::shared_ptr
+
+- retain shared ownership of an object through the given pointer
+- several `shared_ptr`s may own the same object (ownership sharing)
+- resource will be released when the last owner is destroyed
+
+```
+auto v1 = std::make_shared<Vec>(1, 2, 3);
+std::cout << "use count: " << v1.use_count() << "\n";  // prints 1
+
+// sharing the ownership by assignment
+// auto v2 = v1 works here, but not suggested
+std::shared_ptr<Vec3> v2 = v1;
+std::cout << "use count: " << v2.use_count() << "\n";  // prints 2
+
+// sharing the ownership by ctor
+std::shared_ptr<Vec3> v3(v1)
+std::cout << "use count: " << v3.use_count() << "\n";  // prints 3
+```
+
+- sharing ownership is usually not a good idea for resource management
+- use `unique_ptr` if possible
+
+---
+
+# weak pointer
+
+- non-owning ("weak") reference
+- when you *really* need to make cyclically referenced objects
+- must be converted to `shared_ptr` to access the resource
+
+## rules to use smart pointers
+
+The best design is to avoid shared ownership of pointers whenever you can.
+However, if you must have shared ownership of shared_ptr instances, avoid cyclic references between them.
+
+.footnote[https://msdn.microsoft.com/en-us/library/hh279672.aspx]
 ---
 
 name: inverse
@@ -819,8 +919,8 @@ Reference
 
 
     </textarea>
-    <!-- <script src="http://gnab.github.io/remark/downloads/remark-latest.min.js" type="text/javascript"> -->
-    <script src="file:///Users/xatier/remark-latest.min.js" type="text/javascript"> -->
+    <script src="http://gnab.github.io/remark/downloads/remark-latest.min.js" type="text/javascript">
+    <!-- <script src="file:///Users/xatier/remark-latest.min.js" type="text/javascript"> -->
 
     </script>
     <script type="text/javascript">
