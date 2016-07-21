@@ -874,11 +874,11 @@ std::cout << "use count: " << v1.use_count() << "\n";  // prints 1
 
 // sharing the ownership by assignment
 // auto v2 = v1 works here, but not suggested
-std::shared_ptr<Vec3> v2 = v1;
+std::shared_ptr<Vec> v2 = v1;
 std::cout << "use count: " << v2.use_count() << "\n";  // prints 2
 
 // sharing the ownership by ctor
-std::shared_ptr<Vec3> v3(v1)
+std::shared_ptr<Vec> v3(v1)
 std::cout << "use count: " << v3.use_count() << "\n";  // prints 3
 ```
 
